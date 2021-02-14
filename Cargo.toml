@@ -11,3 +11,4 @@ build = "build.rs"
 cmake = "0.1"
 
 [dependencies]
+libc = "0.2"
