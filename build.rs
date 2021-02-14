@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 fn main() {
   let mut dst = Config::new("libcoap")
+    .define("DTLS_BACKEND", "tinydtls")
     .define("ENABLE_TESTS", "OFF")
     .define("ENABLE_EXAMPLES", "OFF")
     .define("ENABLE_DOCS", "OFF")
