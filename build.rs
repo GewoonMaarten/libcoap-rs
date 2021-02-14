@@ -9,10 +9,16 @@ fn main() {
     .define("ENABLE_EXAMPLES", "OFF")
     .define("ENABLE_DOCS", "OFF")
     .build();
-  dst.push("lib");
+
+  dst.push("build");
 
   println!("cargo:rustc-link-search=native={}", dst.display());
   println!("cargo:rustc-link-lib=static=coap-2");
+
+  dst.push("lib");
+
+  println!("cargo:rustc-link-search=native={}", dst.display());
+  println!("cargo:rustc-link-lib=static=tinydtls");
 
   println!("cargo:rerun-if-changed=wrapper.h");
 
