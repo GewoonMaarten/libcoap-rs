@@ -17,6 +17,10 @@ fn main() {
 
   let bindings = bindgen::Builder::default()
     .header("wrapper.h")
+    .generate_comments(true)
+    .use_core()
+    .whitelist_type("coap_.*")
+    .whitelist_function("coap_.*")
     .generate()
     .expect("Unable to generate bindings");
 
