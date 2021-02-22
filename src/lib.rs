@@ -10,53 +10,61 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 mod tests {
     use super::*;
 
+    fn resolve_address(host: &str, port: &str) -> Option<coap_address_t> {
+        let mut ainfo: *mut libc::addrinfo;
+        let node = std::ffi::CString::new(host).unwrap();
+        let service = std::ffi::CString::new(port).unwrap();
+        let hints = libc::addrinfo {
+            ai_flags: 0,
+            ai_family: libc::AF_UNSPEC,
+            ai_socktype: libc::SOCK_DGRAM,
+            ai_protocol: 0,
+            ai_addrlen: 0,
+            ai_addr: std::ptr::null_mut(),
+            ai_canonname: std::ptr::null_mut(),
+            ai_next: std::ptr::null_mut(),
+        };
+        let mut res: *mut libc::addrinfo = std::ptr::null_mut();
+        let error = unsafe { libc::getaddrinfo(node.as_ptr(), service.as_ptr(), &hints, &mut res) };
+        if error != 0 {
+            panic!("getaddrinfo: {:?}\n", unsafe { libc::gai_strerror(error) });
+        }
+
+        let mut dst: Option<coap_address_t> = None;
+        ainfo = res;
+        while ainfo != std::ptr::null_mut() {
+            let de_ainfo = unsafe { *ainfo };
+            let addr = unsafe { *de_ainfo.ai_addr };
+            let addr_len = unsafe { (*ainfo).ai_addrlen };
+
+            match de_ainfo.ai_family {
+                libc::AF_INET => {
+                    let sock: sockaddr_in = unsafe { std::mem::transmute(addr) };
+                    dst = Some(coap_address_t {
+                        size: addr_len,
+                        addr: coap_address_t__bindgen_ty_1 { sin: sock },
+                    });
+                }
+                libc::AF_INET6 => {}
+                _ => {}
+            };
+
+            ainfo = unsafe { (*ainfo).ai_next };
+        }
+
+        unsafe { libc::freeaddrinfo(res) };
+
+        dst
+    }
+
     #[test]
     fn send_example_coap_message() {
         // This is just a sanity test
+        // Copy of https://github.com/obgm/libcoap-minimal/blob/master/client.cc
         unsafe {
             coap_startup();
 
-            let mut ainfo: *mut libc::addrinfo;
-            let node = std::ffi::CString::new("coap.me").unwrap();
-            let service = std::ffi::CString::new("5683").unwrap();
-            let hints = libc::addrinfo {
-                ai_flags: 0,
-                ai_family: libc::AF_UNSPEC,
-                ai_socktype: libc::SOCK_DGRAM,
-                ai_protocol: 0,
-                ai_addrlen: 0,
-                ai_addr: std::ptr::null_mut(),
-                ai_canonname: std::ptr::null_mut(),
-                ai_next: std::ptr::null_mut(),
-            };
-            let mut res: *mut libc::addrinfo = std::ptr::null_mut();
-            let error = libc::getaddrinfo(node.as_ptr(), service.as_ptr(), &hints, &mut res);
-            if error != 0 {
-                panic!("getaddrinfo: {:?}\n", libc::gai_strerror(error));
-            }
-
-            let mut dst: Option<coap_address_t> = None;
-            ainfo = res;
-            while ainfo != std::ptr::null_mut() {
-                let de_ainfo = *ainfo;
-                let addr = *de_ainfo.ai_addr;
-
-                match de_ainfo.ai_family {
-                    libc::AF_INET => {
-                        let sock: sockaddr_in = std::mem::transmute(addr);
-                        dst = Some(coap_address_t {
-                            size: (*ainfo).ai_addrlen,
-                            addr: coap_address_t__bindgen_ty_1 { sin: sock },
-                        });
-                    }
-                    libc::AF_INET6 => {}
-                    _ => {}
-                };
-
-                ainfo = (*ainfo).ai_next;
-            }
-
-            libc::freeaddrinfo(res);
+            let dst = resolve_address("coap.me", "5683");
 
             let listen_addr: *const coap_address_t = std::ptr::null_mut();
             let ctx = coap_new_context(listen_addr);
