@@ -2,13 +2,12 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use std::convert::TryInto;
-
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::convert::TryInto;
 
     fn resolve_address(host: &str, port: &str) -> Option<coap_address_t> {
         let mut ainfo: *mut libc::addrinfo;
