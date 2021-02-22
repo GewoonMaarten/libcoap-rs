@@ -1,3 +1,3 @@
 [submodule "libcoap"]
-	path = libcoap
+	path = libcoap-sys/libcoap
 	url = git@github.com:obgm/libcoap.git
