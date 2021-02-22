@@ -98,4 +98,22 @@ mod tests {
             coap_cleanup();
         }
     }
+
+    #[test]
+    fn start_server() {
+        // This is just a sanity test
+        // Copy of https://github.com/obgm/libcoap-minimal/blob/master/client.cc
+        unsafe {
+            let dst = resolve_address("localhost", "5683").unwrap();
+            let ctx = coap_new_context(std::ptr::null());
+            assert!(!ctx.is_null());
+
+            let proto = (COAP_PROTO_UDP as u32).try_into().unwrap();
+            let endpoint = coap_new_endpoint(ctx, &dst, proto);
+            assert!(!endpoint.is_null());
+
+            coap_free_context(ctx);
+            coap_cleanup();
+        }
+    }
 }
