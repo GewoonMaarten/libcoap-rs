@@ -22,16 +22,19 @@ fn main() {
 
   println!("cargo:rerun-if-changed=wrapper.h");
 
+  let out_dir = env::var("OUT_DIR").unwrap();
+
   let bindings = bindgen::Builder::default()
-    .header("wrapper.h")
+    .header(format!("{}/build/include/coap2/coap.h", out_dir))
+    .clang_arg(format!("-I{}/include/coap2", out_dir))
     .generate_comments(false) // true breaks the binding
-    .whitelist_var("^(?i)coap_.*")
-    .whitelist_type("^(?i)coap_.*")
-    .whitelist_function("^(?i)coap_.*")
+    .whitelist_var("^(?i)(lib)?coap_.*")
+    .whitelist_type("^(?i)(lib)?coap_.*")
+    .whitelist_function("^(?i)(lib)?coap_.*")
     .generate()
     .expect("Unable to generate bindings");
 
-  let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+  let out_path = PathBuf::from(out_dir);
   bindings
     .write_to_file(out_path.join("bindings.rs"))
     .expect("Couldn't write bindings!");
