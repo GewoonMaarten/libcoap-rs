@@ -9,6 +9,7 @@ repository = "https://github.com/GewoonMaarten/libcoap-rs"
 readme = "README.md"
 categories = ["network-programming", "external-ffi-bindings"]
 keywords = ["coap"]
+links = "libcoap"
 build = "build.rs"
 
 [build-dependencies]
