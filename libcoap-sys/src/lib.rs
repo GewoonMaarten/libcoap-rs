@@ -57,6 +57,12 @@ mod tests {
     }
 
     #[test]
+    fn check_metadata() {
+        assert_eq!(LIBCOAP_PACKAGE_NAME, b"libcoap\0");
+        assert_eq!(LIBCOAP_PACKAGE_VERSION, b"4.3.0\0");
+    }
+
+    #[test]
     fn send_example_coap_message() {
         // This is just a sanity test
         // Copy of https://github.com/obgm/libcoap-minimal/blob/master/client.cc
