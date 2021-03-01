@@ -1,8 +1,9 @@
 use std::mem;
 use std::net::{SocketAddr, ToSocketAddrs};
 
-pub struct CoapContext {
+pub struct CoapContext<'a> {
     context: std::ptr::NonNull<ffi::coap_context_t>,
+    _phantom: std::marker::PhantomData<&'a std::ptr::NonNull<ffi::coap_context_t>>,
 }
 
 fn socket_addr(addr: &SocketAddr) -> ffi::coap_address_t {
@@ -41,7 +42,7 @@ fn socket_addr(addr: &SocketAddr) -> ffi::coap_address_t {
     }
 }
 
-impl CoapContext {
+impl<'a> CoapContext<'a> {
     pub fn new(server_address: &str) -> Self {
         let coap_addrs: Vec<_> = server_address
             .to_socket_addrs()
@@ -53,20 +54,32 @@ impl CoapContext {
         let context = unsafe { ffi::coap_new_context(coap_addr) };
         Self {
             context: std::ptr::NonNull::new(context).expect("Could not create context."),
+            _phantom: std::marker::PhantomData,
         }
     }
 
-    // pub fn set_app_data<T>(&self, mut data: T) {
-    //     let data = &mut data as *mut _ as *mut libc::c_void;
-    //     unsafe { ffi::coap_set_app_data(self.context.as_ptr(), data) };
-    // }
+    pub fn set_app_data<T>(&self, data: &'a mut T) {
+        let data = data as *mut _ as *mut libc::c_void;
+        unsafe { ffi::coap_set_app_data(self.context.as_ptr(), data) };
+    }
 
-    // pub fn get_app_data<T>(&self) -> T {
-    //     let data = unsafe { ffi::coap_get_app_data(self.context.as_ptr()) };
-    // }
+    pub fn get_app_data<T>(&self) -> Option<&T> {
+        let data = unsafe { ffi::coap_get_app_data(self.context.as_ptr()) };
+        if data.is_null() {
+            None
+        } else {
+            let data = data as *mut T;
+            //TODO: Fix safety comment, when data lifetime has been fixed.
+            // SAFETY: coap_context_t can only store a pointer to our data (which
+            // we know is correct and we check if the pointer still point to a
+            // valid memory space). And we can turn in into a safe reference.
+            let data = unsafe { &*data };
+            Some(data)
+        }
+    }
 }
 
-impl Drop for CoapContext {
+impl<'a> Drop for CoapContext<'a> {
     fn drop(&mut self) {
         unsafe { ffi::coap_free_context(self.context.as_ptr()) };
     }
@@ -85,5 +98,31 @@ mod tests {
     #[should_panic(expected = "Unable to resolve address")]
     fn create_new_context_with_invalid_addr() {
         CoapContext::new("lochost:6001");
+    }
+
+    #[test]
+    fn store_and_retrieve() {
+        let context = CoapContext::new("localhost:6001");
+
+        context.set_app_data(&mut 42);
+        let result: i32 = *context.get_app_data().unwrap();
+        assert_eq!(result, 42);
+
+        context.set_app_data(&mut "test");
+        let result: &str = *context.get_app_data().unwrap();
+        assert_eq!(result, "test");
+    }
+
+    #[test]
+    //TODO: This test should not compile
+    fn store_drop_and_retrieve() {
+        let context = CoapContext::new("localhost:6001");
+        let mut data = String::from("test");
+        context.set_app_data(&mut data);
+        drop(data); // Data is dropped here
+        let x = context // But used here
+            .get_app_data::<String>()
+            .expect("Value has been dropped");
+        assert_eq!(x, "test")
     }
 }
