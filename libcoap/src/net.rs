@@ -43,15 +43,9 @@ fn socket_addr(addr: &SocketAddr) -> ffi::coap_address_t {
 }
 
 impl<'a> CoapContext<'a> {
-    pub fn new(server_address: &str) -> Self {
-        let coap_addrs: Vec<_> = server_address
-            .to_socket_addrs()
-            .expect("Unable to resolve address")
-            .map(|addr| socket_addr(&addr))
-            .collect();
-
-        let coap_addr = &coap_addrs[0];
-        let context = unsafe { ffi::coap_new_context(coap_addr) };
+    pub fn new() -> Self {
+        let listen_addr = std::ptr::null_mut();
+        let context = unsafe { ffi::coap_new_context(listen_addr) };
         Self {
             context: std::ptr::NonNull::new(context).expect("Could not create context."),
             _phantom: std::marker::PhantomData,
@@ -85,24 +79,94 @@ impl<'a> Drop for CoapContext<'a> {
     }
 }
 
+pub struct CoapSession {
+    session: std::ptr::NonNull<ffi::coap_session_t>,
+}
+
+#[repr(u8)]
+pub enum CoapProto {
+    UDP = 1,
+    DTLS = 2,
+    TCP = 3,
+    TLS = 4,
+}
+
+impl CoapSession {
+    pub fn new(context: &CoapContext, server_address: &str, proto: CoapProto) -> Self {
+        let coap_addrs: Vec<_> = server_address
+            .to_socket_addrs()
+            .expect("Unable to resolve address")
+            .map(|addr| socket_addr(&addr))
+            .collect();
+        let coap_addr = &coap_addrs[0];
+
+        let session = unsafe {
+            ffi::coap_new_client_session(
+                context.context.as_ptr(),
+                std::ptr::null_mut(),
+                coap_addr,
+                proto as u8,
+            )
+        };
+
+        Self {
+            session: std::ptr::NonNull::new(session).expect("Could not create session"),
+        }
+    }
+
+    pub fn new_psk(
+        context: &CoapContext,
+        server_address: &str,
+        proto: CoapProto,
+        identity: &str,
+        key: &str,
+    ) -> Self {
+        let coap_addrs: Vec<_> = server_address
+            .to_socket_addrs()
+            .expect("Unable to resolve address")
+            .map(|addr| socket_addr(&addr))
+            .collect();
+        let coap_addr = &coap_addrs[0];
+
+        let identity = std::ffi::CString::new(identity).unwrap();
+        let key_len = key.len();
+        let key = std::ffi::CString::new(key).unwrap();
+        let session = unsafe {
+            ffi::coap_new_client_session_psk(
+                context.context.as_ptr(),
+                std::ptr::null_mut(),
+                coap_addr,
+                proto as u8,
+                identity.as_ptr(),
+                key.as_ptr() as *const u8,
+                key_len as u32,
+            )
+        };
+
+        Self {
+            session: std::ptr::NonNull::new(session).expect("Could not create session"),
+        }
+    }
+}
+
+impl Drop for CoapSession {
+    fn drop(&mut self) {
+        unsafe { ffi::coap_session_release(self.session.as_ptr()) };
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn create_new_context() {
-        CoapContext::new("localhost:6001");
-    }
-
-    #[test]
-    #[should_panic(expected = "Unable to resolve address")]
-    fn create_new_context_with_invalid_addr() {
-        CoapContext::new("lochost:6001");
+        CoapContext::new();
     }
 
     #[test]
     fn store_and_retrieve() {
-        let context = CoapContext::new("localhost:6001");
+        let context = CoapContext::new();
 
         context.set_app_data(&mut 42);
         let result: i32 = *context.get_app_data().unwrap();
@@ -116,7 +180,7 @@ mod tests {
     #[test]
     //TODO: This test should not compile
     fn store_drop_and_retrieve() {
-        let context = CoapContext::new("localhost:6001");
+        let context = CoapContext::new();
         let mut data = String::from("test");
         context.set_app_data(&mut data);
         drop(data); // Data is dropped here
