@@ -79,8 +79,9 @@ impl<'a> Drop for CoapContext<'a> {
     }
 }
 
-pub struct CoapSession {
+pub struct CoapSession<'a> {
     session: std::ptr::NonNull<ffi::coap_session_t>,
+    _phantom: std::marker::PhantomData<&'a std::ptr::NonNull<ffi::coap_session_t>>,
 }
 
 #[repr(u8)]
@@ -91,8 +92,8 @@ pub enum CoapProto {
     TLS = 4,
 }
 
-impl CoapSession {
-    pub fn new(context: &CoapContext, server_address: &str, proto: CoapProto) -> Self {
+impl<'a> CoapSession<'a> {
+    pub fn new(context: &'a CoapContext, server_address: &str, proto: CoapProto) -> Self {
         let coap_addrs: Vec<_> = server_address
             .to_socket_addrs()
             .expect("Unable to resolve address")
@@ -111,11 +112,12 @@ impl CoapSession {
 
         Self {
             session: std::ptr::NonNull::new(session).expect("Could not create session"),
+            _phantom: std::marker::PhantomData,
         }
     }
 
     pub fn new_psk(
-        context: &CoapContext,
+        context: &'a CoapContext,
         server_address: &str,
         proto: CoapProto,
         identity: &str,
@@ -145,11 +147,12 @@ impl CoapSession {
 
         Self {
             session: std::ptr::NonNull::new(session).expect("Could not create session"),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl Drop for CoapSession {
+impl<'a> Drop for CoapSession<'a> {
     fn drop(&mut self) {
         unsafe { ffi::coap_session_release(self.session.as_ptr()) };
     }
