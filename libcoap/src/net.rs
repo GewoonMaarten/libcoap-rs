@@ -192,4 +192,17 @@ mod tests {
             .expect("Value has been dropped");
         assert_eq!(x, "test")
     }
+
+    #[test]
+    fn create_session() {
+        let context = CoapContext::new();
+        let session = CoapSession::new(&context, "localhost:6000", CoapProto::UDP);
+        let session_psk = CoapSession::new_psk(
+            &context,
+            "localhost:6000",
+            CoapProto::UDP,
+            "indentity",
+            "key",
+        );
+    }
 }
