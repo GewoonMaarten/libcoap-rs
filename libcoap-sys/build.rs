@@ -43,6 +43,8 @@ fn main() {
     .whitelist_var("^(?i)(lib)?coap_.*")
     .whitelist_type("^(?i)(lib)?coap_.*")
     .whitelist_function("^(?i)(lib)?coap_.*")
+    .use_core()
+    .ctypes_prefix("libc")
     .generate()
     .expect("Unable to generate bindings");
 
