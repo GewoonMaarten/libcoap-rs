@@ -13,7 +13,7 @@ links = "libcoap"
 build = "build.rs"
 
 [build-dependencies]
-bindgen = "0.57"
+bindgen = "0.58"
 cmake = "0.1"
 
 [dependencies]
