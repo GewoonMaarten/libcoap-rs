@@ -17,4 +17,4 @@ bindgen = "0.58"
 cmake = "0.1"
 
 [dependencies]
-libc = { version = "0.2.97", std = false }
+libc = { version = "0.2.98", std = false }
